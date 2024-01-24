@@ -27,26 +27,7 @@ with open('/home/adam/VScodeProjects/Automation/gpt_mouse_move/standardized_segm
 
 
 
-# Define a custom dataset class
-# class MouseMovementDataset(Dataset):
-#     def __init__(self, segments):
-#         self.segments = segments
-
-#     def __len__(self):
-#         return len(self.segments)
-
-#     def __getitem__(self, idx):
-#         segment = self.segments[idx]
-#         input_features = segment[:, :-3]
-#         targets = segment[:, -3:]
-#         return input_features, targets
-
-# # Convert list of DataFrames to list of tensors
-# tensor_segments = [torch.tensor(segment.values, dtype=torch.float32) for segment in standardized_segments]
-
-# # Create the dataset
-# dataset = MouseMovementDataset(tensor_segments)
-
+Define a custom dataset class
 class MouseMovementDataset(Dataset):
     def __init__(self, segments):
         self.segments = segments
@@ -56,11 +37,30 @@ class MouseMovementDataset(Dataset):
 
     def __getitem__(self, idx):
         segment = self.segments[idx]
-        # Select 'x' and 'y' columns for input features and targets
-        input_features = segment.iloc[:-1][['x', 'y']].values
-        targets = segment.iloc[1:][['x', 'y']].values
-        # Convert to tensors
-        return torch.tensor(input_features, dtype=torch.float32), torch.tensor(targets, dtype=torch.float32)
+        input_features = segment[:, :-3]
+        targets = segment[:, -3:]
+        return input_features, targets
+
+# Convert list of DataFrames to list of tensors
+tensor_segments = [torch.tensor(segment.values, dtype=torch.float32) for segment in standardized_segments]
+
+# Create the dataset
+dataset = MouseMovementDataset(tensor_segments)
+
+# class MouseMovementDataset(Dataset):
+#     def __init__(self, segments):
+#         self.segments = segments
+
+#     def __len__(self):
+#         return len(self.segments)
+
+#     def __getitem__(self, idx):
+#         segment = self.segments[idx]
+#         # Select 'x' and 'y' columns for input features and targets
+#         input_features = segment.iloc[:-1][['x', 'y']].values
+#         targets = segment.iloc[1:][['x', 'y']].values
+#         # Convert to tensors
+#         return torch.tensor(input_features, dtype=torch.float32), torch.tensor(targets, dtype=torch.float32)
 
 # Assuming 'standardized_segments' is a list of Pandas DataFrames
 dataset = MouseMovementDataset(standardized_segments)
