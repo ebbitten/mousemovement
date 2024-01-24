@@ -27,7 +27,7 @@ with open('/home/adam/VScodeProjects/Automation/gpt_mouse_move/standardized_segm
 
 
 
-Define a custom dataset class
+# Define a custom dataset class
 class MouseMovementDataset(Dataset):
     def __init__(self, segments):
         self.segments = segments
@@ -37,15 +37,20 @@ class MouseMovementDataset(Dataset):
 
     def __getitem__(self, idx):
         segment = self.segments[idx]
-        input_features = segment[:, :-3]
-        targets = segment[:, -3:]
+        if isinstance(segment, pd.DataFrame):
+            input_features = torch.tensor(segment.iloc[:-1][['x', 'y']].values, dtype=torch.float32)
+            targets = torch.tensor(segment.iloc[1:][['x', 'y']].values, dtype=torch.float32)
+        else:
+            input_features = torch.tensor(segment[:-1, 0:2], dtype=torch.float32)
+            targets = torch.tensor(segment[1:, 0:2], dtype=torch.float32)
         return input_features, targets
 
-# Convert list of DataFrames to list of tensors
+# Convert list of Pandas DataFrames to list of tensors
 tensor_segments = [torch.tensor(segment.values, dtype=torch.float32) for segment in standardized_segments]
 
 # Create the dataset
 dataset = MouseMovementDataset(tensor_segments)
+
 
 # class MouseMovementDataset(Dataset):
 #     def __init__(self, segments):
@@ -62,8 +67,8 @@ dataset = MouseMovementDataset(tensor_segments)
 #         # Convert to tensors
 #         return torch.tensor(input_features, dtype=torch.float32), torch.tensor(targets, dtype=torch.float32)
 
-# Assuming 'standardized_segments' is a list of Pandas DataFrames
-dataset = MouseMovementDataset(standardized_segments)
+# # Assuming 'standardized_segments' is a list of Pandas DataFrames
+# dataset = MouseMovementDataset(standardized_segments)
 
 
 # Split the dataset into training and validation sets
@@ -83,9 +88,19 @@ class MouseMovementLSTM(nn.Module):
         self.output_layer = nn.Linear(hidden_layer_size, output_size)
 
     def forward(self, x):
+        # LSTM layer
         lstm_out, _ = self.lstm(x)
+
+        # Reshape output for the linear layer
+        batch_size, seq_len, hidden_size = lstm_out.shape
+        lstm_out = lstm_out.contiguous().view(batch_size * seq_len, hidden_size)
+
+        # Pass through the linear layer and reshape back to sequence format
         output = self.output_layer(lstm_out)
+        output = output.view(batch_size, seq_len, -1)
+
         return output
+
 
 # Instantiate the model
 input_size = 9
