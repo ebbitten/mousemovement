@@ -82,31 +82,36 @@ class CustomSequenceLoss(nn.Module):
         return combined_loss
 
 # Training function
-def train_lstm_model(load_checkpoint=None, save_viz=False, num_epochs=500, batch_size=64, learning_rate=0.001, step_size=50, gamma=0.5, start_weight=5.0, end_weight=5.0, sequence_weight=1.0,):
+def train_lstm_model(directory_name, load_checkpoint=None, save_viz=False, num_epochs=500, batch_size=64, learning_rate=0.001, step_size=50, gamma=0.5, start_weight=5.0, end_weight=5.0, sequence_weight=1.0, checkpoint_interval=10):
     checkpoint_dir = f"{directory_name}/checkpoints"
     os.makedirs(checkpoint_dir, exist_ok=True)
     viz_dir = f"{directory_name}/visualizations"
     os.makedirs(viz_dir, exist_ok=True)
 
+    # Load data
     with open('standardized_segments.pkl', 'rb') as f:
         standardized_segments = pickle.load(f)
-
     dataset = MouseMovementDataset([segment[['x', 'y']].values for segment in standardized_segments])
+
+    # Split data and create DataLoaders
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
+    # Instantiate the model
     model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, output_size=2, sequence_length=420, dropout_prob=0.5)
     if load_checkpoint:
         model.load_state_dict(torch.load(load_checkpoint))
         model.eval()
 
+    # Define loss function and optimizer
     criterion = CustomSequenceLoss(start_weight=start_weight, end_weight=end_weight, sequence_weight=sequence_weight)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
 
+    # Training loop
     for epoch in range(num_epochs):
         model.train()
         for inputs, targets in train_loader:
@@ -117,6 +122,7 @@ def train_lstm_model(load_checkpoint=None, save_viz=False, num_epochs=500, batch
             optimizer.step()
         scheduler.step()
 
+        # Validation loop
         model.eval()
         val_loss = 0.0
         num_batches = 0
@@ -127,15 +133,17 @@ def train_lstm_model(load_checkpoint=None, save_viz=False, num_epochs=500, batch
             num_batches += 1
         val_loss /= num_batches
 
+        # Save checkpoints and visualize predictions
         if (epoch + 1) % checkpoint_interval == 0:
             checkpoint_path = os.path.join(checkpoint_dir, f'model_epoch_{epoch}.pth')
             torch.save(model.state_dict(), checkpoint_path)
+            print(f"Saved checkpoint: {checkpoint_path}")
 
             if save_viz:
                 visualize_predictions(model, val_dataset, num_samples=4, epoch=epoch, save_viz=True, viz_dir=viz_dir)
 
-
     print('Finished Training')
+
 
 if __name__ == "__main__":
     train_lstm_model()

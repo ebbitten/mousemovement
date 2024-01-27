@@ -2,11 +2,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from datetime import datetime
+import torch
 
-def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False):
-    today_date = datetime.now().strftime('%Y_%m_%d')
-    viz_dir = f'viz_{today_date}'
+def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False, viz_dir=None):
+    # If a directory name is provided, use it; otherwise, create a new directory based on the current date
+    if viz_dir:
+        viz_dir = f"{viz_dir}/visualizations"
+    else:
+        today_date = datetime.now().strftime('%Y_%m_%d')
+        viz_dir = f'viz_{today_date}'
 
+    # Create the visualizations directory if it doesn't exist
     if save_viz and not os.path.exists(viz_dir):
         os.makedirs(viz_dir)
     
@@ -16,6 +22,7 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
         with torch.no_grad():
             sample_output = model(sample_input.unsqueeze(0))
 
+        # Debugging information
         start_point = sample_input[0].numpy()
         end_point = sample_input[1].numpy()
         first_pred_point = sample_output[0, 0].numpy()
