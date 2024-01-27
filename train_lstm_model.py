@@ -81,7 +81,7 @@ model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, out
 
 # Loss function and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.003)
 
 # Load model from checkpoint if specified
 if args.load_checkpoint:
