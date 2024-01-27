@@ -11,6 +11,12 @@ from datetime import datetime
 import os
 import pandas as pd
 
+
+today_date = datetime.now().strftime('%Y_%m_%d')
+checkpoint_dir = f'model_checkpoints_{today_date}'
+os.makedirs(checkpoint_dir, exist_ok=True)  # Create the directory if it does not exist
+
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description='Train and visualize LSTM model for mouse movement prediction.')
 parser.add_argument('--load_checkpoint', type=str, default=None, help='Path to a checkpoint to load for continuing training.')
@@ -128,10 +134,8 @@ class MouseMovementLSTM(nn.Module):
 model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, output_size=2, sequence_length=420, dropout_prob=0.5)
 
 
-# Loss function and optimizer
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-scheduler = StepLR(optimizer, step_size=30, gamma=0.3) 
+
+
 
 # Load model from checkpoint if specified
 if args.load_checkpoint:
@@ -185,9 +189,14 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
             plt.show()  # Display the plot
 
 
+# Loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = StepLR(optimizer, step_size=50, gamma=0.5) 
+
 
 # Training loop for multiple epochs with checkpointing
-num_epochs = 210
+num_epochs = 500
 checkpoint_interval = 5
 
 # Check if starting from scratch or a checkpoint
@@ -196,7 +205,7 @@ if args.load_checkpoint:
     start_epoch = int(args.load_checkpoint.split('_')[-1].split('.')[0]) + 1
 
 # Instantiate the custom loss function
-loss_function = CustomSequenceLoss(start_weight=2.0, end_weight=2.0, sequence_weight=1.0)
+loss_function = CustomSequenceLoss(start_weight=10.0, end_weight=10.0, sequence_weight=1.0)
 
 for epoch in range(start_epoch, start_epoch+num_epochs):
     model.train()
@@ -212,16 +221,19 @@ for epoch in range(start_epoch, start_epoch+num_epochs):
     # Validation loop
     model.eval()
     val_loss = 0.0
+    num_batches = 0
     with torch.no_grad():
         for val_inputs, val_targets in val_loader:
             val_outputs = model(val_inputs)
-            val_loss += criterion(val_outputs, val_targets).item()
-    val_loss /= len(val_loader)
+            batch_loss = loss_function(val_outputs, val_targets)
+            val_loss += batch_loss.item()
+            num_batches += 1
 
+    val_loss /= num_batches
     print(f'Epoch {epoch+1}, Training Loss: {loss.item()}, Validation Loss: {val_loss}')
 
     if (epoch + 1) % checkpoint_interval == 0:
-        checkpoint_path = f'model_epoch_{epoch}.pth'
+        checkpoint_path = os.path.join(checkpoint_dir, f'model_epoch_{epoch}.pth')
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Saved checkpoint: {checkpoint_path}")
 
