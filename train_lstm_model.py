@@ -57,6 +57,28 @@ val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 #define the model
 
+class CustomSequenceLoss(nn.Module):
+    def __init__(self, start_weight=1.0, end_weight=1.0, sequence_weight=1.0):
+        super(CustomSequenceLoss, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.start_weight = start_weight
+        self.end_weight = end_weight
+        self.sequence_weight = sequence_weight
+
+    def forward(self, predictions, targets):
+        # Calculate the standard MSE for the entire sequence
+        sequence_loss = self.mse_loss(predictions, targets)
+
+        # Calculate MSE for the start and end points
+        start_loss = self.mse_loss(predictions[:, 0], targets[:, 0])
+        end_loss = self.mse_loss(predictions[:, -1], targets[:, -1])
+
+        # Combine the losses
+        combined_loss = (self.sequence_weight * sequence_loss +
+                         self.start_weight * start_loss +
+                         self.end_weight * end_loss)
+        
+        return combined_loss
 
 
 class MouseMovementLSTM(nn.Module):
@@ -165,7 +187,7 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
 
 
 # Training loop for multiple epochs with checkpointing
-num_epochs = 200
+num_epochs = 210
 checkpoint_interval = 5
 
 # Check if starting from scratch or a checkpoint
@@ -173,13 +195,16 @@ start_epoch = 0
 if args.load_checkpoint:
     start_epoch = int(args.load_checkpoint.split('_')[-1].split('.')[0]) + 1
 
+# Instantiate the custom loss function
+loss_function = CustomSequenceLoss(start_weight=2.0, end_weight=2.0, sequence_weight=1.0)
+
 for epoch in range(start_epoch, start_epoch+num_epochs):
     model.train()
     # Training loop
     for inputs, targets in train_loader:
         optimizer.zero_grad()
         outputs = model(inputs)
-        loss = criterion(outputs, targets)
+        loss = loss_function(outputs, targets)
         loss.backward()
         optimizer.step()
     scheduler.step()
