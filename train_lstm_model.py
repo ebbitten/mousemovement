@@ -1,6 +1,8 @@
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
 import pickle
 import matplotlib.pyplot as plt
@@ -34,7 +36,7 @@ class MouseMovementDataset(Dataset):
         # Extract the start and end points as input features
         input_features = torch.tensor(np.array([segment[0, :2], segment[-1, :2]]), dtype=torch.float32)
         # The target sequence is all the points in the segment except the first one
-        targets = torch.tensor(segment[1:, :2], dtype=torch.float32)  # All points except the first
+        targets = torch.tensor(segment[:, :2], dtype=torch.float32)  # All points except the first
         return input_features, targets
 
 # Convert list of Pandas DataFrames to list of tensors
@@ -54,34 +56,60 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 #define the model
+
+
+
 class MouseMovementLSTM(nn.Module):
-    def __init__(self, input_size, hidden_layer_size, num_layers, output_size, sequence_length):
+    def __init__(self, input_size, hidden_layer_size, num_layers, output_size, sequence_length, dropout_prob=0.5):
         super(MouseMovementLSTM, self).__init__()
+
+        # Attributes
         self.sequence_length = sequence_length
-        self.lstm = nn.LSTM(input_size, hidden_layer_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_layer_size, num_layers, batch_first=True, dropout=dropout_prob)
+
+        # Fully Connected Layers
+        self.fc1 = nn.Linear(hidden_layer_size, hidden_layer_size * 2)
+        self.fc2 = nn.Linear(hidden_layer_size * 2, hidden_layer_size)
         self.output_layer = nn.Linear(hidden_layer_size, output_size)
 
+        # Dropout and Activation
+        self.dropout = nn.Dropout(dropout_prob)
+        self.relu = nn.ReLU()
+
     def forward(self, x):
-        # Flatten the start and end points
-        x = x.view(x.size(0), -1)  # Reshape to [batch_size, 4]
+        # Ensure x is of the shape [batch_size, input_size]
+        batch_size, _, input_size = x.shape
+        x = x.view(batch_size, -1)  # Flatten the start and end points
 
-        # Repeat the flattened vector to form a sequence
-        x = x.repeat(1, self.sequence_length).view(x.size(0), self.sequence_length, -1)
+        # Repeat x to form a sequence
+        x = x.repeat(1, self.sequence_length).view(batch_size, self.sequence_length, -1)
 
+        # LSTM layer
         lstm_out, _ = self.lstm(x)
-        
-        # Modify the output to match the target sequence length
-        output = self.output_layer(lstm_out[:, :-1, :])  # Exclude the last time step
 
-        return output
+        # Select the output for each time step
+        lstm_out = lstm_out.contiguous().view(batch_size, self.sequence_length, -1)
+
+        # Fully connected layers with dropout and ReLU activations
+        out = self.dropout(self.relu(self.fc1(lstm_out)))
+        out = self.dropout(self.relu(self.fc2(out)))
+
+        # Final output layer
+        predictions = self.output_layer(out)
+        
+        return predictions
+
+
+
 
 # Instantiate the model
-model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, output_size=2, sequence_length=420)
+model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, output_size=2, sequence_length=420, dropout_prob=0.5)
 
 
 # Loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = StepLR(optimizer, step_size=30, gamma=0.3) 
 
 # Load model from checkpoint if specified
 if args.load_checkpoint:
@@ -99,7 +127,7 @@ import os
 def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False):
     # Determine the directory to save the visualizations
     today_date = datetime.now().strftime('%Y_%m_%d')
-    viz_dir = f'gpt_mouse_move/viz_{today_date}'
+    viz_dir = f'viz_{today_date}'
 
     # Create the directory if it doesn't exist and save_viz is True
     if save_viz and not os.path.exists(viz_dir):
@@ -137,7 +165,7 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
 
 
 # Training loop for multiple epochs with checkpointing
-num_epochs = 500
+num_epochs = 200
 checkpoint_interval = 5
 
 # Check if starting from scratch or a checkpoint
@@ -154,6 +182,7 @@ for epoch in range(start_epoch, start_epoch+num_epochs):
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
+    scheduler.step()
 
     # Validation loop
     model.eval()
