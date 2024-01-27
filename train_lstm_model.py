@@ -111,6 +111,12 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
         with torch.no_grad():
             sample_output = model(sample_input.unsqueeze(0))
 
+        # Debugging: print the start, end, and first predicted point
+        start_point = sample_input[0].numpy()
+        end_point = sample_input[1].numpy()
+        first_pred_point = sample_output[0, 0].numpy()
+        print(f"Sample {i+1}: Start point: {start_point}, End point: {end_point}, First predicted point: {first_pred_point}")
+
         plt.figure(figsize=(10, 5))
         plt.plot(sample_target[:, 0].numpy(), sample_target[:, 1].numpy(), 'ro-', label='Actual Path')
         plt.plot(sample_output[0, :, 0].numpy(), sample_output[0, :, 1].numpy(), 'bs-', label='Predicted Path')
@@ -139,7 +145,7 @@ start_epoch = 0
 if args.load_checkpoint:
     start_epoch = int(args.load_checkpoint.split('_')[-1].split('.')[0]) + 1
 
-for epoch in range(start_epoch, num_epochs):
+for epoch in range(start_epoch, start_epoch+num_epochs):
     model.train()
     # Training loop
     for inputs, targets in train_loader:
