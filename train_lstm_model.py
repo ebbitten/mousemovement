@@ -7,25 +7,18 @@ import matplotlib.pyplot as plt
 import argparse
 from datetime import datetime
 import os
+import pandas as pd
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description='Train and visualize LSTM model for mouse movement prediction.')
-parser.add_argument('--load_checkpoint', type=str, default=None,
-                    help='Path to a checkpoint to load for continuing training.')
-parser.add_argument('--test_checkpoint', type=str, default=None,
-                    help='Path to a checkpoint to load for testing and visualization.')
-parser.add_argument('--save_viz', action='store_true',
-                    help='Save visualizations to a folder instead of displaying them.')
+parser.add_argument('--load_checkpoint', type=str, default=None, help='Path to a checkpoint to load for continuing training.')
+parser.add_argument('--test_checkpoint', type=str, default=None, help='Path to a checkpoint to load for testing and visualization.')
+parser.add_argument('--save_viz', action='store_true', help='Save visualizations to a folder instead of displaying them.')
 args = parser.parse_args()
 
-
 # Load the standardized segments from the pickle file
-with open('/home/adam/VScodeProjects/Automation/gpt_mouse_move/standardized_segments.pkl', 'rb') as f:
+with open('standardized_segments.pkl', 'rb') as f:
     standardized_segments = pickle.load(f)
-
-
-
-
 
 # Define a custom dataset class
 class MouseMovementDataset(Dataset):
@@ -35,41 +28,21 @@ class MouseMovementDataset(Dataset):
     def __len__(self):
         return len(self.segments)
 
+
     def __getitem__(self, idx):
         segment = self.segments[idx]
-        if isinstance(segment, pd.DataFrame):
-            input_features = torch.tensor(segment.iloc[:-1][['x', 'y']].values, dtype=torch.float32)
-            targets = torch.tensor(segment.iloc[1:][['x', 'y']].values, dtype=torch.float32)
-        else:
-            input_features = torch.tensor(segment[:-1, 0:2], dtype=torch.float32)
-            targets = torch.tensor(segment[1:, 0:2], dtype=torch.float32)
+        # Extract the start and end points as input features
+        input_features = torch.tensor(np.array([segment[0, :2], segment[-1, :2]]), dtype=torch.float32)
+        # The target sequence is all the points in the segment except the first one
+        targets = torch.tensor(segment[1:, :2], dtype=torch.float32)  # All points except the first
         return input_features, targets
 
 # Convert list of Pandas DataFrames to list of tensors
-tensor_segments = [torch.tensor(segment.values, dtype=torch.float32) for segment in standardized_segments]
+tensor_segments = [segment[['x', 'y']].values for segment in standardized_segments]
+
 
 # Create the dataset
 dataset = MouseMovementDataset(tensor_segments)
-
-
-# class MouseMovementDataset(Dataset):
-#     def __init__(self, segments):
-#         self.segments = segments
-
-#     def __len__(self):
-#         return len(self.segments)
-
-#     def __getitem__(self, idx):
-#         segment = self.segments[idx]
-#         # Select 'x' and 'y' columns for input features and targets
-#         input_features = segment.iloc[:-1][['x', 'y']].values
-#         targets = segment.iloc[1:][['x', 'y']].values
-#         # Convert to tensors
-#         return torch.tensor(input_features, dtype=torch.float32), torch.tensor(targets, dtype=torch.float32)
-
-# # Assuming 'standardized_segments' is a list of Pandas DataFrames
-# dataset = MouseMovementDataset(standardized_segments)
-
 
 # Split the dataset into training and validation sets
 train_size = int(0.8 * len(dataset))
@@ -80,40 +53,35 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-# Define the LSTM model
+#define the model
 class MouseMovementLSTM(nn.Module):
-    def __init__(self, input_size, hidden_layer_size, num_layers, output_size):
+    def __init__(self, input_size, hidden_layer_size, num_layers, output_size, sequence_length):
         super(MouseMovementLSTM, self).__init__()
+        self.sequence_length = sequence_length
         self.lstm = nn.LSTM(input_size, hidden_layer_size, num_layers, batch_first=True)
         self.output_layer = nn.Linear(hidden_layer_size, output_size)
 
     def forward(self, x):
-        # LSTM layer
+        # Flatten the start and end points
+        x = x.view(x.size(0), -1)  # Reshape to [batch_size, 4]
+
+        # Repeat the flattened vector to form a sequence
+        x = x.repeat(1, self.sequence_length).view(x.size(0), self.sequence_length, -1)
+
         lstm_out, _ = self.lstm(x)
-
-        # Reshape output for the linear layer
-        batch_size, seq_len, hidden_size = lstm_out.shape
-        lstm_out = lstm_out.contiguous().view(batch_size * seq_len, hidden_size)
-
-        # Pass through the linear layer and reshape back to sequence format
-        output = self.output_layer(lstm_out)
-        output = output.view(batch_size, seq_len, -1)
+        
+        # Modify the output to match the target sequence length
+        output = self.output_layer(lstm_out[:, :-1, :])  # Exclude the last time step
 
         return output
 
-
 # Instantiate the model
-input_size = 9
-hidden_layer_size = 128
-num_layers = 2
-output_size = 2
+model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, output_size=2, sequence_length=420)
 
-model = MouseMovementLSTM(input_size, hidden_layer_size, num_layers, output_size)
 
 # Loss function and optimizer
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-
 
 # Load model from checkpoint if specified
 if args.load_checkpoint:
@@ -161,15 +129,10 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
             plt.show()  # Display the plot
 
 
-# Modify this function as needed to adjust scaling based on your data normalization approach
-def denormalize_predictions(predictions, max_val, min_val):
-    return predictions * (max_val - min_val) + min_val
 
 # Training loop for multiple epochs with checkpointing
 num_epochs = 50
 checkpoint_interval = 5
-
-# ... (previous code)
 
 # Check if starting from scratch or a checkpoint
 start_epoch = 0

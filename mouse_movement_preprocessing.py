@@ -23,16 +23,13 @@ def segment_and_standardize_data(df, sequence_length=420, min_length=50):
 
             if segment_length >= min_length:
                 if segment_length < sequence_length:
-                    # Pad the sequence from the last known point
                     last_point = segment.iloc[-1]
                     padding = pd.DataFrame([last_point] * (sequence_length - segment_length), columns=df.columns)
                     segment = pd.concat([segment, padding], ignore_index=True)
-
                 elif segment_length > sequence_length:
-                    # Trim the sequence if it's too long
                     segment = segment.iloc[:sequence_length]
 
-                standardized_segments.append(segment)
+                standardized_segments.append(segment[['x', 'y']])  # Only include 'x' and 'y' columns
             start_idx = end_idx + 1
 
     return standardized_segments
@@ -42,43 +39,37 @@ def preprocess_file(file_path):
     """ Preprocesses a single file and returns standardized segments. """
     data = pd.read_csv(file_path)
     data.columns = ['x', 'y', 'timestamp', 'click']
-    data['delta_x'] = data['x'].diff().fillna(0)
-    data['delta_y'] = data['y'].diff().fillna(0)
-    data['delta_time'] = data['timestamp'].diff().fillna(0)
-    data['velocity_x'] = data['delta_x'] / data['delta_time']
-    data['velocity_y'] = data['delta_y'] / data['delta_time']
-    data.replace([np.inf, -np.inf], np.nan, inplace=True)
-    data.fillna(0, inplace=True)
-
+    
+    # No additional feature calculations needed for 'x' and 'y' only
     return segment_and_standardize_data(data)
 
 
 def plot_mouse_movements(segment, title):
     """ Plot a sequence of mouse movements. """
     plt.plot(segment['x'], segment['y'], marker='o')
-    plt.scatter(segment['x'].iloc[0], segment['y'].iloc[0], color='green', label='Start')  # Start point
-    plt.scatter(segment['x'].iloc[-1], segment['y'].iloc[-1], color='red', label='End')    # End point
+    plt.scatter(segment['x'].iloc[0], segment['y'].iloc[0], color='green', label='Start')
+    plt.scatter(segment['x'].iloc[-1], segment['y'].iloc[-1], color='red', label='End')
     plt.xlabel('X Coordinate')
     plt.ylabel('Y Coordinate')
     plt.title(title)
     plt.legend()
-    plt.gca().invert_yaxis()  # Inverting y-axis to match screen coordinates
+    plt.gca().invert_yaxis()
+
 
 def perform_sanity_checks(segments):
     """ Perform sanity checks by plotting random segments. """
-    num_segments = len(segments)
-    
-    if num_segments < 4:
-        print(f"Not enough segments for sanity checks. Found only {num_segments} segments.")
+    if len(segments) < 4:
+        print("Not enough segments for sanity checks.")
         return
 
     plt.figure(figsize=(12, 10))
-    for i in range(1, 5):
+    for i in range(4):
         segment = random.choice(segments)
-        plt.subplot(2, 2, i)
-        plot_mouse_movements(segment, f'Segment {i}')
+        plt.subplot(2, 2, i+1)
+        plot_mouse_movements(segment, f'Segment {i+1}')
     plt.tight_layout()
     plt.show()
+
 
 
 # Directory containing the data files
