@@ -50,8 +50,8 @@ val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 # Create DataLoaders for training and validation sets
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 #define the model
 class MouseMovementLSTM(nn.Module):
@@ -81,7 +81,7 @@ model = MouseMovementLSTM(input_size=4, hidden_layer_size=128, num_layers=2, out
 
 # Loss function and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.003)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Load model from checkpoint if specified
 if args.load_checkpoint:
@@ -128,7 +128,7 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
 
         # Save or display the plot
         if save_viz:
-            file_name = f'sample_{i+1}_epoch_{epoch}_{today_date}.png'
+            file_name = f'epoch_{epoch}_sample_{i+1}_{today_date}.png'
             plt.savefig(os.path.join(viz_dir, file_name))
             plt.close()  # Close the figure after saving to avoid display
         else:
@@ -137,7 +137,7 @@ def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False
 
 
 # Training loop for multiple epochs with checkpointing
-num_epochs = 50
+num_epochs = 500
 checkpoint_interval = 5
 
 # Check if starting from scratch or a checkpoint
