@@ -4,3 +4,6 @@ Trainign Notes
 a. Tried adding 2 fully connected layers, was worried that'd cause overfitting so added a RELU. Also added a custom loss function to weight the endpoints more
 b. tried starting with a and then more heavily weighting (5,5,1 instead of 2,2,1)
 c. tried restarting from fresh with the more heavy weights
+
+created a grid search to allow searching over different hyper parameters
+updating the model to try averaging the current output method (1 LSTM->FFC->FCC->output) with just drawing a straight line

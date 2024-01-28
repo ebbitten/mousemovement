@@ -24,6 +24,11 @@ class MouseMovementDataset(Dataset):
         targets = torch.tensor(segment[:, :2], dtype=torch.float32)  # Include all points
         return input_features, targets
 
+def create_linear_path(start_point, end_point, sequence_length):
+    # Linearly interpolate between start and end points
+    line = torch.linspace(start_point, end_point, sequence_length)
+    return line
+
 # LSTM model definition
 class MouseMovementLSTM(nn.Module):
     def __init__(self, input_size, hidden_layer_size, num_layers, output_size, sequence_length, dropout_prob=0.5):
@@ -62,8 +67,16 @@ class MouseMovementLSTM(nn.Module):
 
         # Final output layer
         predictions = self.output_layer(out)
-        
-        return predictions
+
+        # Create a linear path from start to end point for each sample in the batch
+        start_points = x[:, 0, :2]  # Start points of each sequence
+        end_points = x[:, -1, :2]  # End points of each sequence
+        linear_paths = torch.stack([create_linear_path(start, end, self.sequence_length) for start, end in zip(start_points, end_points)])
+
+        # Blend the model's output with the linear path
+        blended_output = predictions * 0.5 + linear_paths * 0.5  # Adjust the blending ratio as needed
+
+        return blended_output
 
 # Custom loss function
 class CustomSequenceLoss(nn.Module):
