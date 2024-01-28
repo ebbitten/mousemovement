@@ -58,6 +58,12 @@ class MouseMovementLSTM(nn.Module):
         # LSTM layer
         lstm_out, _ = self.lstm(x)
 
+        # Manually set the first and last outputs to be the start and end points
+        start_points = x[:, 0, :2].unsqueeze(1)  # Start points of each sequence, reshaped for broadcasting
+        end_points = x[:, -1, :2].unsqueeze(1)  # End points of each sequence, reshaped for broadcasting
+        lstm_out[:, 0, :2] = start_points
+        lstm_out[:, -1, :2] = end_points
+
         # Select the output for each time step
         lstm_out = lstm_out.contiguous().view(batch_size, self.sequence_length, -1)
 
@@ -67,7 +73,11 @@ class MouseMovementLSTM(nn.Module):
 
         # Final output layer
         predictions = self.output_layer(out)
+<<<<<<< Updated upstream
 
+=======
+        
+>>>>>>> Stashed changes
         # Create a linear path from start to end point for each sample in the batch
         start_points = x[:, 0, :2]  # Start points of each sequence
         end_points = x[:, -1, :2]  # End points of each sequence

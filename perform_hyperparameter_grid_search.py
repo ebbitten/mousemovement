@@ -9,9 +9,9 @@ def perform_hyperparameter_grid_search():
     learning_rates = [0.001, 0.005, 0.01]
     step_sizes = [30, 50, 70]
     gammas = [0.5, 0.7, 0.9]
-    start_weights = [1.0, 5.0, 10.0]
-    end_weights = [1.0, 5.0, 10.0]
-    sequence_weights = [1.0, 5.0, 10.0]
+    start_weights = [1.0]
+    end_weights = [1.0]
+    sequence_weights = [1.0]
 
     # Generate all combinations of hyperparameters
     for batch_size, learning_rate, step_size, gamma, start_weight, end_weight, sequence_weight in itertools.product(batch_sizes, learning_rates, step_sizes, gammas, start_weights, end_weights, sequence_weights):

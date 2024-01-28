@@ -7,7 +7,7 @@ import torch
 def visualize_predictions(model, dataset, num_samples=4, epoch=0, save_viz=False, viz_dir=None):
     # If a directory name is provided, use it; otherwise, create a new directory based on the current date
     if viz_dir:
-        viz_dir = f"{viz_dir}/visualizations"
+        viz_dir = f"{viz_dir}"
     else:
         today_date = datetime.now().strftime('%Y_%m_%d')
         viz_dir = f'viz_{today_date}'
