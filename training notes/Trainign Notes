@@ -7,3 +7,9 @@ c. tried restarting from fresh with the more heavy weights
 
 created a grid search to allow searching over different hyper parameters
 updating the model to try averaging the current output method (1 LSTM->FFC->FCC->output) with just drawing a straight line
+
+1.28.24
+Adding a layer in the model that runs in parallel to the ltsm layer. This layer will just be a evenly spaced line between the start and end points.
+Also manually setting the first and last cell in the lstm layer to be the first and last point. 
+
+second round going to try removing hard coding the lstm output to start and end on the line 

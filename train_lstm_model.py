@@ -25,9 +25,14 @@ class MouseMovementDataset(Dataset):
         return input_features, targets
 
 def create_linear_path(start_point, end_point, sequence_length):
-    # Linearly interpolate between start and end points
-    line = torch.linspace(start_point, end_point, sequence_length)
-    return line
+    # Generate linearly spaced values for each dimension
+    linspace_x = torch.linspace(start_point[0], end_point[0], sequence_length)
+    linspace_y = torch.linspace(start_point[1], end_point[1], sequence_length)
+
+    # Combine x and y coordinates
+    linear_path = torch.stack((linspace_x, linspace_y), dim=1)
+
+    return linear_path
 
 # LSTM model definition
 class MouseMovementLSTM(nn.Module):
@@ -48,7 +53,6 @@ class MouseMovementLSTM(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        # Ensure x is of the shape [batch_size, input_size]
         batch_size, _, input_size = x.shape
         x = x.view(batch_size, -1)  # Flatten the start and end points
 
@@ -58,26 +62,13 @@ class MouseMovementLSTM(nn.Module):
         # LSTM layer
         lstm_out, _ = self.lstm(x)
 
-        # Manually set the first and last outputs to be the start and end points
-        start_points = x[:, 0, :2].unsqueeze(1)  # Start points of each sequence, reshaped for broadcasting
-        end_points = x[:, -1, :2].unsqueeze(1)  # End points of each sequence, reshaped for broadcasting
-        lstm_out[:, 0, :2] = start_points
-        lstm_out[:, -1, :2] = end_points
-
-        # Select the output for each time step
-        lstm_out = lstm_out.contiguous().view(batch_size, self.sequence_length, -1)
-
         # Fully connected layers with dropout and ReLU activations
         out = self.dropout(self.relu(self.fc1(lstm_out)))
         out = self.dropout(self.relu(self.fc2(out)))
 
         # Final output layer
         predictions = self.output_layer(out)
-<<<<<<< Updated upstream
 
-=======
-        
->>>>>>> Stashed changes
         # Create a linear path from start to end point for each sample in the batch
         start_points = x[:, 0, :2]  # Start points of each sequence
         end_points = x[:, -1, :2]  # End points of each sequence
@@ -87,6 +78,9 @@ class MouseMovementLSTM(nn.Module):
         blended_output = predictions * 0.5 + linear_paths * 0.5  # Adjust the blending ratio as needed
 
         return blended_output
+
+
+
 
 # Custom loss function
 class CustomSequenceLoss(nn.Module):

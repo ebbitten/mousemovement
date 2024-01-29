@@ -7,11 +7,11 @@ def perform_hyperparameter_grid_search():
     # Define ranges for hyperparameters
     batch_sizes = [32, 64, 128]
     learning_rates = [0.001, 0.005, 0.01]
-    step_sizes = [30, 50, 70]
-    gammas = [0.5, 0.7, 0.9]
+    step_sizes = [20]
+    gammas = [0.3, 0.5]
     start_weights = [1.0]
     end_weights = [1.0]
-    sequence_weights = [1.0]
+    sequence_weights = [1.0, 0.5, 0.25]
 
     # Generate all combinations of hyperparameters
     for batch_size, learning_rate, step_size, gamma, start_weight, end_weight, sequence_weight in itertools.product(batch_sizes, learning_rates, step_sizes, gammas, start_weights, end_weights, sequence_weights):
@@ -25,7 +25,7 @@ def perform_hyperparameter_grid_search():
         # Call the training function with the directory name and hyperparameters
         train_lstm_model.train_lstm_model(
             directory_name=directory_name,
-            load_checkpoint='/home/adam/VScodeProjects/Automation/gpt_mouse_move/hyperparam_search_2024_01_27_bs32_lr0.001_ss30_gamma0.5_sw1.0_ew1.0_seqw1.0/checkpoints/model_epoch_9.pth',  # or path to a checkpoint if needed
+            load_checkpoint=None,  # or path to a checkpoint if needed
             save_viz=True,  # Set to True to save visualizations
             num_epochs=100,  # Adjust as needed
             batch_size=batch_size,
