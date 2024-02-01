@@ -10,6 +10,6 @@ updating the model to try averaging the current output method (1 LSTM->FFC->FCC-
 
 1.28.24
 Adding a layer in the model that runs in parallel to the ltsm layer. This layer will just be a evenly spaced line between the start and end points.
-Also manually setting the first and last cell in the lstm layer to be the first and last point. 
+Also manually setting the first and last cell in the lstm layer to be the first and last point. (removed this)
 
 second round going to try removing hard coding the lstm output to start and end on the line 
